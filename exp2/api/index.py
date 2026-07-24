@@ -72,22 +72,28 @@ def rabin_karp(text, pattern, q=101):
             if t_hash < 0:
                 t_hash += q
     return matches, comparisons
-text = input('Please enter a string')
-pattern = input("please enter the pattern")
-print(f'Text:    {text}')
-print(f'Pattern: {pattern}')
-m1, c1 = naive_search(text, pattern)
-m2, c2 = kmp_search(text, pattern)
-m3, c3 = rabin_karp(text, pattern)
-print(f'\nNaive  -> Matches at: {m1}, Comparisons: {c1}')
-print(f'KMP    -> Matches at: {m2}, Comparisons: {c2}')
-print(f'RK     -> Matches at: {m3}, Comparisons: {c3}')
-text_large = ''.join(random.choices('ABCD', k=10000))
-patterns = ['AB', 'ABCD', 'ABCDAB', 'ABCDABCD']
-print(f'\n{"Pattern":>12} {"Naive":>10} {"KMP":>10} {"RK":>10}')
-print('-' * 50)
-for p in patterns:
-    _, c1 = naive_search(text_large, p)
-    _, c2 = kmp_search(text_large, p)
-    _, c3 = rabin_karp(text_large, p)
-    print(f'{p:>12} {c1:>10} {c2:>10} {c3:>10}')
+from http.server import BaseHTTPRequestHandler
+import json
+
+class handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        length = int(self.headers["Content-Length"])
+        body = json.loads(self.rfile.read(length))
+
+        text = body["text"]
+        pattern = body["pattern"]
+
+        m1, c1 = naive_search(text, pattern)
+        m2, c2 = kmp_search(text, pattern)
+        m3, c3 = rabin_karp(text, pattern)
+
+        response = {
+            "naive": {"matches": m1, "comparisons": c1},
+            "kmp": {"matches": m2, "comparisons": c2},
+            "rabin_karp": {"matches": m3, "comparisons": c3}
+        }
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(response).encode())
