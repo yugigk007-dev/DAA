@@ -1,8 +1,9 @@
-from http.server import BaseHTTPRequestHandler
-import json
 import time
 import random
 import string
+from http.server import BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
+import json
 def naive_search(text, pattern):
     n, m = len(text), len(pattern)
     matches, comparisons = [], 0
@@ -72,10 +73,39 @@ def rabin_karp(text, pattern, q=101):
             if t_hash < 0:
                 t_hash += q
     return matches, comparisons
-from http.server import BaseHTTPRequestHandler
-import json
-
 class handler(BaseHTTPRequestHandler):
+
+    def do_GET(self):
+        query = parse_qs(urlparse(self.path).query)
+
+        text = query.get("text", [""])[0]
+        pattern = query.get("pattern", [""])[0]
+
+        if not text or not pattern:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "error": "Please provide both text and pattern.",
+                "example": "/api/index?text=ABCDABCD&pattern=AB"
+            }).encode())
+            return
+
+        m1, c1 = naive_search(text, pattern)
+        m2, c2 = kmp_search(text, pattern)
+        m3, c3 = rabin_karp(text, pattern)
+
+        response = {
+            "naive": {"matches": m1, "comparisons": c1},
+            "kmp": {"matches": m2, "comparisons": c2},
+            "rabin_karp": {"matches": m3, "comparisons": c3}
+        }
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(response).encode())
+
     def do_POST(self):
         length = int(self.headers["Content-Length"])
         body = json.loads(self.rfile.read(length))
@@ -92,6 +122,11 @@ class handler(BaseHTTPRequestHandler):
             "kmp": {"matches": m2, "comparisons": c2},
             "rabin_karp": {"matches": m3, "comparisons": c3}
         }
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(response).encode())
 
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
